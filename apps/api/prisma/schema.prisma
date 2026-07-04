@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -37,7 +37,7 @@ model User {
   employee_code  String   @unique
   phone          String?
   avatar_url     String?
-  face_embedding Json?
+  face_embedding String?
   join_date      DateTime @default(now())
   status         String   @default("active") // active, inactive
 
@@ -127,6 +127,6 @@ model AuditLog {
   action     String
   entity     String
   entity_id  Int
-  meta       Json?
+  meta       String?
   created_at DateTime @default(now())
 }
