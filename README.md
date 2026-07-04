@@ -27,8 +27,8 @@ Proyek ini dibangun menggunakan arsitektur **Monorepo (Turborepo)** dengan kompo
 
 1. Kloning repositori ini:
    ```bash
-   git clone https://github.com/YanNotTamm/HDIR-App---Attendance-App.git
-   cd "HDIR-App---Attendance-App"
+   git clone https://github.com/YanNotTamm/HDIRApp-AttendanceApp.git
+   cd HDIRApp-AttendanceApp
    ```
 
 2. Instal seluruh dependensi proyek:
