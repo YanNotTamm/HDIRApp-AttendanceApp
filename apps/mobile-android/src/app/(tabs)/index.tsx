@@ -1,15 +1,66 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { Clock, MapPin, Calendar } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { attendanceApi, authApi, extractData, apiErrorMessage, type SessionUser } from '@hdir/core/src/api-client';
+
+function formatTime(value: string | null | undefined): string {
+  if (!value) return '-';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '-' : d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
 
 export default function DashboardScreen() {
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [clockIn, setClockIn] = useState<string | null>(null);
+  const [clockOut, setClockOut] = useState<string | null>(null);
+  const [todayStatus, setTodayStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Muat ulang tiap kali beranda difokuskan, agar status setelah absen ikut berubah.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          // Profil login backend baru hanya berisi id/email/role (tanpa nama),
+          // jadi perkaya dari /auth/me yang kini nyata (bukan mock audit).
+          // Bila /auth/me gagal, pakai profil sesi apa adanya.
+          const stored = await authApi.getStoredUser();
+          const profile = (await authApi.getMe().catch(() => null)) ?? stored;
+          if (cancelled) return;
+          setUser(profile);
+          const res = await attendanceApi.getToday();
+          if (cancelled) return;
+          const data = extractData<{ clock_in?: string | null; clock_out?: string | null; status?: string | null }>(res);
+          setClockIn(data?.clock_in ?? null);
+          setClockOut(data?.clock_out ?? null);
+          setTodayStatus(data?.status ?? null);
+        } catch (err) {
+          if (!cancelled) setError(apiErrorMessage(err, 'Gagal memuat status hari ini.'));
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Halo, Budi Santoso</Text>
-          <Text style={styles.subtitle}>Selamat datang di HDIR Karyawan</Text>
+          <Text style={styles.greeting}>Halo, {user?.name ?? 'Karyawan'}</Text>
+          <Text style={styles.subtitle}>
+            {user?.email ?? 'Selamat datang di HDIR Karyawan'}
+          </Text>
         </View>
 
         <View style={styles.summaryCard}>
@@ -20,17 +71,29 @@ export default function DashboardScreen() {
                 <Clock size={24} color="#2563eb" />
               </View>
               <Text style={styles.statusLabel}>Jam Masuk</Text>
-              <Text style={styles.statusValue}>--:--</Text>
+              <Text style={styles.statusValue}>{loading ? '…' : formatTime(clockIn)}</Text>
             </View>
             <View style={styles.statusItem}>
               <View style={[styles.iconWrapper, { backgroundColor: '#fce7f3' }]}>
                 <Clock size={24} color="#db2777" />
               </View>
               <Text style={styles.statusLabel}>Jam Keluar</Text>
-              <Text style={styles.statusValue}>--:--</Text>
+              <Text style={styles.statusValue}>{loading ? '…' : formatTime(clockOut)}</Text>
             </View>
           </View>
         </View>
+
+        {loading ? (
+          <ActivityIndicator color="#2563eb" style={{ marginBottom: 24 }} />
+        ) : error ? (
+          <Text style={styles.noteText}>{error}</Text>
+        ) : (
+          <Text style={styles.noteText}>
+            {clockIn
+              ? `Status hari ini: ${todayStatus ?? '-'}${clockOut ? ' — sudah check-out.' : ' — belum check-out.'}`
+              : 'Belum ada absensi hari ini.'}
+          </Text>
+        )}
 
         <TouchableOpacity 
           style={styles.actionButton}
@@ -192,5 +255,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#334155',
+  },
+  noteText: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 24,
   },
 });

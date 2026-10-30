@@ -2,18 +2,31 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Lock, Mail } from 'lucide-react-native';
+import { authApi, loginErrorMessage } from '@hdir/core/src/api-client';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    setError(null);
+    if (!email.trim() || !password) {
+      setError('Email dan password wajib diisi.');
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await authApi.login(email.trim(), password);
+      // Password tidak disimpan; hanya token (+ profil) yang disimpan
+      // (SecureStore di native, lihat src/lib/auth-storage.ts).
       router.replace('/(tabs)');
-    }, 1000);
+    } catch (err) {
+      setError(loginErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -52,8 +65,14 @@ export default function LoginScreen() {
           />
         </View>
 
-        <TouchableOpacity 
-          style={styles.loginButton} 
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={styles.loginButton}
           onPress={handleLogin}
           disabled={loading}
         >
@@ -123,6 +142,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#0f172a',
+  },
+  errorBox: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    padding: 12,
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 14,
   },
   loginButton: {
     backgroundColor: '#2563eb',

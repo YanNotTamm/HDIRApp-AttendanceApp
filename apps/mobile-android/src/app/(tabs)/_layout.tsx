@@ -1,7 +1,17 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, router } from 'expo-router';
 import { Home, Camera, User } from 'lucide-react-native';
+import { authApi } from '@hdir/core/src/api-client';
 
 export default function TabLayout() {
+  // Pertahanan kedua selain AuthGate di root layout: tab tidak boleh
+  // dirender tanpa token, walau dibuka langsung lewat deep link.
+  useEffect(() => {
+    authApi.getToken().then((token) => {
+      if (!token) router.replace('/login');
+    });
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
