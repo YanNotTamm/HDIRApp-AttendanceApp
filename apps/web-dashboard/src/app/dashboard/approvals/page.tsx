@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Check, X, MapPin, Calendar, User, Clock } from 'lucide-react';
-import { attendanceApi, leaveApi } from '@hdir/core/src/api-client';
+import { attendanceApi, leaveApi, extractList } from '@hdir/core/src/api-client';
 
 export default function ApprovalsPage() {
   const [activeTab, setActiveTab] = useState<'attendance' | 'leave'>('attendance');
@@ -21,8 +21,8 @@ export default function ApprovalsPage() {
         attendanceApi.getPending(),
         leaveApi.getPending(),
       ]);
-      setPendingAttendance(attRes.data.data || []);
-      setPendingLeaves(leaveRes.data.data || []);
+      setPendingAttendance(extractList(attRes));
+      setPendingLeaves(extractList(leaveRes));
     } catch (err) {
       console.error('Failed to load approvals:', err);
     } finally {
