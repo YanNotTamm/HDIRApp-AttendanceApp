@@ -1,60 +1,64 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { FaceService } from '../face/face.service';
+import { AuditService } from '../audit/audit.service';
+import { DeviceBindDto } from '../common/dto';
 
+/**
+ * DEVICE BINDING: REAL now. The previous round returned 501 because no
+ * device storage existed; the Device table (see schema.prisma) now exists
+ * and bind/is-bound read and write it. What is NOT claimed: attendance
+ * enforcement — a bound user can still check in from another device
+ * (see the Device model comment). That is a deliberate, documented gap,
+ * not a silent one.
+ *
+ * FACE REGISTRATION (legacy route): previously 501 for the same reason
+ * as face.service.ts. It now delegates to the real FaceService.enroll
+ * path, so /employee/face-registration and /face/enroll are the same
+ * verified behaviour behind two routes.
+ *
+ * getFaceDescriptor stays boolean-only: the biometric template itself is
+ * never returned through any endpoint.
+ */
 @Injectable()
 export class EmployeeService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private faceService: FaceService,
+    private audit: AuditService,
+  ) {}
 
-  async bindDevice(userId: number, data: any) {
-    // In reality, this links device_uid to the employee
-    const { device_uid, device_info } = data;
-    if (!device_uid) throw new BadRequestException('Device UID is required');
-
-    return {
-      success: true,
-      message: 'Device bound successfully',
-      data: { device_uid, device_info }
-    };
+  async bindDevice(userId: number, dto: DeviceBindDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const device = await this.prisma.device.upsert({
+      where: { user_id_device_uid: { user_id: userId, device_uid: dto.device_uid } },
+      update: { device_info: dto.device_info ?? null },
+      create: { user_id: userId, device_uid: dto.device_uid, device_info: dto.device_info ?? null },
+    });
+    await this.audit.log(userId, 'device.bind', 'Device', device.id, dto.device_uid);
+    return { success: true, message: 'Device bound successfully', data: { bound: true, device_uid: device.device_uid } };
   }
 
-  async checkDeviceBind(userId: number) {
-    return {
-      success: true,
-      data: { is_bound: true }
-    };
+  async checkDeviceBind(userId: number, deviceUid?: string) {
+    if (deviceUid) {
+      const device = await this.prisma.device.findUnique({
+        where: { user_id_device_uid: { user_id: userId, device_uid: deviceUid } },
+      });
+      return { success: true, data: { bound: !!device, device_uid: deviceUid } };
+    }
+    const count = await this.prisma.device.count({ where: { user_id: userId } });
+    return { success: true, data: { bound: count > 0, bound_devices: count } };
   }
 
-  async registerFace(userId: number, data: any) {
-    const { face_descriptor } = data;
-    if (!face_descriptor) throw new BadRequestException('Face descriptor required');
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!user) throw new BadRequestException('User not found');
-
-    // Update face_embedding string in DB
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { face_embedding: JSON.stringify(face_descriptor) }
-    });
-
-    return { success: true, message: 'Face registered successfully' };
+  async registerFace(userId: number, selfiePhoto: string | undefined) {
+    return this.faceService.enrollFace(userId, selfiePhoto);
   }
 
   async getFaceDescriptor(userId: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!user) throw new BadRequestException('User not found');
-
-    let descriptor = null;
-    if (user.face_embedding) {
-      descriptor = JSON.parse(user.face_embedding);
-    }
-
-    return { success: true, data: { face_descriptor: descriptor } };
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    // Deliberately boolean-only: the embedding itself is never returned.
+    return { success: true, data: { has_face_registered: !!user.face_embedding } };
   }
 }

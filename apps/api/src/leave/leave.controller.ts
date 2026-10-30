@@ -1,47 +1,63 @@
-import { Controller, Post, Get, Put, Body, Req, Query, Param } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Query, Param, UseGuards, ForbiddenException } from '@nestjs/common';
 import { LeaveService } from './leave.service';
+import { JwtAuthGuard, RolesGuard } from '../auth/guards';
+import { Roles, CurrentUser } from '../auth/decorators';
+import type { CurrentUserData } from '../auth/decorators';
+import { CreateLeaveDto, CreateLeaveTypeDto, UpdateQuotaDto } from '../common/dto';
 
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('api/v1/leave')
 export class LeaveController {
   constructor(private readonly leaveService: LeaveService) {}
 
   @Post()
-  async requestLeave(@Body() body: any, @Req() req: any) {
-    const userId = body.userId || 1;
-    return this.leaveService.createLeave(userId, body);
+  async requestLeave(@Body() dto: CreateLeaveDto, @CurrentUser() user: CurrentUserData) {
+    return this.leaveService.createLeave(user.id, dto);
+  }
+
+  @Get('types')
+  async listLeaveTypes() {
+    return this.leaveService.listLeaveTypes();
+  }
+
+  @Roles('admin', 'hr')
+  @Post('types')
+  async createLeaveType(@Body() dto: CreateLeaveTypeDto, @CurrentUser() user: CurrentUserData) {
+    return this.leaveService.createLeaveType(dto, user.id);
   }
 
   @Get()
-  async getMyLeaves(@Req() req: any, @Query('page') page: string) {
-    const userId = req.user?.id || 1;
-    return this.leaveService.getLeaves(userId, parseInt(page) || 1);
+  async getMyLeaves(@CurrentUser() user: CurrentUserData, @Query('page') page: string) {
+    return this.leaveService.getLeaves(user.id, parseInt(page, 10) || 1);
   }
 
   @Get('quota')
-  async getMyQuota(@Req() req: any, @Query('userId') queryUserId: string) {
-    const userId = queryUserId ? parseInt(queryUserId) : (req.user?.id || 1);
-    return this.leaveService.getQuota(userId);
+  async getMyQuota(@CurrentUser() user: CurrentUserData, @Query('userId') queryUserId: string) {
+    const target = queryUserId ? parseInt(queryUserId, 10) : user.id;
+    return this.leaveService.getQuota(target, user);
   }
 
+  @Roles('admin', 'hr')
   @Get('pending')
   async getPendingLeaves() {
     return this.leaveService.getPendingLeaves();
   }
 
+  @Roles('admin', 'hr')
   @Post(':id/approve')
-  async approveLeave(@Param('id') id: string, @Body() body: any) {
-    const approvedBy = body.approvedBy || 1;
-    return this.leaveService.approveLeave(parseInt(id), approvedBy);
+  async approveLeave(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    return this.leaveService.approveLeave(parseInt(id, 10), user.id);
   }
 
+  @Roles('admin', 'hr')
   @Post(':id/reject')
-  async rejectLeave(@Param('id') id: string, @Body() body: any) {
-    const approvedBy = body.approvedBy || 1;
-    return this.leaveService.rejectLeave(parseInt(id), approvedBy);
+  async rejectLeave(@Param('id') id: string, @CurrentUser() user: CurrentUserData) {
+    return this.leaveService.rejectLeave(parseInt(id, 10), user.id);
   }
 
+  @Roles('admin', 'hr')
   @Put('quota/:id')
-  async updateQuota(@Param('id') id: string, @Body() body: any) {
-    return this.leaveService.updateQuota(parseInt(id), parseInt(body.quota_days));
+  async updateQuota(@Param('id') id: string, @Body() dto: UpdateQuotaDto) {
+    return this.leaveService.updateQuota(parseInt(id, 10), dto.quota_days);
   }
 }
