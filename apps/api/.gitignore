@@ -3,3 +3,9 @@ node_modules
 .env
 
 /generated/prisma
+
+# SQLite databases (incl. the old committed dev.db) and uploaded selfies
+# must never be committed with real data.
+*.db
+*.db-journal
+uploads/

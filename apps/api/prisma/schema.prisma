@@ -52,6 +52,40 @@ model User {
   leave_quotas   LeaveQuota[]
   leave_requests LeaveRequest[]
   notifications  Notification[]
+  refresh_tokens RefreshToken[]
+  devices        Device[]
+}
+
+// Device binding: a real table now (previously there was none, so the
+// endpoint could only lie or 501). A device_uid is an opaque client
+// identifier (e.g. Expo device id); binding is recorded per user and
+// queryable, but attendance does NOT yet enforce it — a user with bound
+// devices can still check in from another device. Enforcement is a
+// documented future step, not a silently claimed one.
+model Device {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  user       User     @relation(fields: [user_id], references: [id])
+  device_uid String
+  device_info String?
+  created_at DateTime @default(now())
+
+  @@unique([user_id, device_uid])
+}
+
+// Refresh tokens: only a SHA-256 hash is stored, never the raw token.
+// A token is valid only if its row exists, is not revoked, and not expired.
+// Logout / rotation DELETE the row, and TokenCleanupService deletes
+// expired/revoked leftovers hourly. Access tokens themselves are stateless
+// HS256 JWTs (see src/auth/jwt.util.ts).
+model RefreshToken {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  user       User     @relation(fields: [user_id], references: [id])
+  token_hash String   @unique
+  expires_at DateTime
+  revoked    Boolean  @default(false)
+  created_at DateTime @default(now())
 }
 
 model Attendance {
