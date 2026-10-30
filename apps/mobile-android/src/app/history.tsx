@@ -3,23 +3,31 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, MapPin, Calendar, Clock } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { attendanceApi } from '@hdir/core/src/api-client';
+import { attendanceApi, extractList, apiErrorMessage } from '@hdir/core/src/api-client';
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadHistory = async () => {
+  // Argumen getHistory adalah nomor HALAMAN (page), bukan userId:
+  // identitas user diambil backend dari token. Halaman 1 = 20 data terbaru.
+  const loadHistory = async (nextPage = 1) => {
+    setLoading(true);
+    setError(null);
     try {
-      // Mock userId = 1 for MVP
-      const res = await attendanceApi.getHistory(1);
-      setHistory(res.data.data || []);
+      const res = await attendanceApi.getHistory(nextPage);
+      const items = extractList(res);
+      setHistory(nextPage === 1 ? items : [...history, ...items]);
+      setPage(nextPage);
     } catch (err) {
-      console.error(err);
+      setError(apiErrorMessage(err, 'Gagal memuat riwayat.'));
     } finally {
       setLoading(false);
     }
@@ -62,6 +70,10 @@ export default function HistoryScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
+      ) : error ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>{error}</Text>
+        </View>
       ) : history.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Belum ada riwayat absensi.</Text>
@@ -72,6 +84,11 @@ export default function HistoryScreen() {
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={
+            <TouchableOpacity style={styles.loadMoreButton} onPress={() => loadHistory(page + 1)}>
+              <Text style={styles.loadMoreText}>Muat halaman berikutnya</Text>
+            </TouchableOpacity>
+          }
         />
       )}
     </SafeAreaView>
@@ -118,6 +135,18 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 24,
     gap: 16,
+  },
+  loadMoreButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  loadMoreText: {
+    color: '#2563eb',
+    fontWeight: '600',
   },
   historyCard: {
     backgroundColor: '#fff',

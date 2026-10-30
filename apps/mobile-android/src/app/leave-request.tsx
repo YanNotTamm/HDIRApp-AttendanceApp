@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar as CalendarIcon, ChevronLeft } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { leaveApi } from '@hdir/core/src/api-client';
+import { leaveApi, extractList, apiErrorMessage } from '@hdir/core/src/api-client';
 
 export default function LeaveRequestScreen() {
   const [startDate, setStartDate] = useState('');
@@ -19,9 +19,9 @@ export default function LeaveRequestScreen() {
 
   const loadQuota = async () => {
     try {
-      // Mock userId = 1 for MVP
-      const res = await leaveApi.getMyQuota(1);
-      setQuota(res.data.data || []);
+      // Tanpa userId: kuota diri sendiri, identitas dari token.
+      const res = await leaveApi.getMyQuota();
+      setQuota(extractList(res));
     } catch (err) {
       console.error(err);
     } finally {
@@ -37,9 +37,8 @@ export default function LeaveRequestScreen() {
 
     setLoading(true);
     try {
-      // Mock userId = 1 for MVP
+      // Tanpa userId: identitas dari token.
       await leaveApi.request({
-        userId: 1,
         start_date: startDate,
         end_date: endDate,
         reason,
@@ -50,7 +49,7 @@ export default function LeaveRequestScreen() {
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Gagal mengajukan cuti';
+      const msg = apiErrorMessage(err, 'Gagal mengajukan cuti');
       Alert.alert('Gagal', msg);
     } finally {
       setLoading(false);
@@ -74,7 +73,7 @@ export default function LeaveRequestScreen() {
           {quotaLoading ? (
             <ActivityIndicator color="#2563eb" />
           ) : quota.length === 0 ? (
-            <Text style={styles.quotaValue}>12 Hari (Default)</Text>
+            <Text style={styles.quotaValue}>Kuota belum tersedia</Text>
           ) : (
             quota.map((q) => (
               <View key={q.id} style={styles.quotaItem}>

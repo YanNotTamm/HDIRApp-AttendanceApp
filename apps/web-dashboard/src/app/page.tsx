@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Camera, MapPin, Fingerprint, Calendar, Clock, LogIn, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Camera, MapPin, Fingerprint, Calendar, Clock, ChevronRight, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function Home() {
@@ -79,8 +79,8 @@ export default function Home() {
             </div>
           </div>
           <div>
-            <h3 className="text-emerald-700 font-bold">Location Detected</h3>
-            <p className="text-sm text-emerald-600/80">Within HQ Geofence (12m)</p>
+            <h3 className="text-emerald-700 font-bold">Siap Digunakan</h3>
+            <p className="text-sm text-emerald-600/80">Masuk lewat dashboard untuk absen dengan GPS &amp; verifikasi wajah</p>
           </div>
         </motion.div>
 
@@ -91,7 +91,8 @@ export default function Home() {
           initial="hidden"
           animate="visible"
         >
-          <motion.button 
+          <motion.a
+            href="/login"
             variants={itemVariants}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -101,9 +102,10 @@ export default function Home() {
               <Camera className="w-6 h-6" />
             </div>
             <span className="font-semibold text-sm text-slate-700">Check In</span>
-          </motion.button>
+          </motion.a>
           
-          <motion.button 
+          <motion.a
+            href="/login"
             variants={itemVariants}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -113,42 +115,44 @@ export default function Home() {
               <Calendar className="w-6 h-6" />
             </div>
             <span className="font-semibold text-sm text-slate-700">Leave</span>
-          </motion.button>
+          </motion.a>
         </motion.div>
 
-        {/* Recent Activity */}
-        <motion.div 
+        {/* Activity: no fake history is shown on this public page.
+            Real attendance appears after login, on the HR dashboard. */}
+        <motion.div
           className="w-full flex flex-col gap-3"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Recent Activity</h4>
-          
-          <motion.div variants={itemVariants} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Mulai dari sini</h4>
+
+          <motion.a
+            href="/login"
+            variants={itemVariants}
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer"
+          >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-700">Checked In</p>
-                <p className="text-xs text-slate-500">Yesterday, 08:45 AM</p>
+                <p className="text-sm font-semibold text-slate-700">Masuk ke Dashboard HR</p>
+                <p className="text-xs text-slate-500">Lihat rekap kehadiran hari ini &amp; persetujuan</p>
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400" />
-          </motion.div>
-          
-          <motion.div variants={itemVariants} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-slate-500" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-700">Checked Out</p>
-                <p className="text-xs text-slate-500">Yesterday, 05:30 PM</p>
-              </div>
+          </motion.a>
+
+          <motion.div variants={itemVariants} className="flex items-center gap-3 p-3 rounded-xl border border-transparent">
+            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+              <Clock className="w-4 h-4 text-slate-500" />
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
+            <div>
+              <p className="text-sm font-semibold text-slate-700">Absen dari aplikasi mobile</p>
+              <p className="text-xs text-slate-500">GPS + foto selfie + verifikasi wajah, dari HP karyawan</p>
+            </div>
           </motion.div>
         </motion.div>
       </motion.div>

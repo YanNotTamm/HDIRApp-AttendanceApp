@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Calendar, Edit, Save, X } from 'lucide-react';
-import { usersApi, leaveApi } from '@hdir/core/src/api-client';
+import { usersApi, leaveApi, extractList } from '@hdir/core/src/api-client';
 
 export default function LeavesPage() {
   const [employees, setEmployees] = useState<any[]>([]);
@@ -19,7 +19,7 @@ export default function LeavesPage() {
   const loadEmployees = async () => {
     try {
       const res = await usersApi.getAll();
-      setEmployees(res.data.data || res.data || []);
+      setEmployees(extractList(res));
     } catch (err) {
       console.error('Failed to load employees:', err);
     }
@@ -30,7 +30,7 @@ export default function LeavesPage() {
     setLoading(true);
     try {
       const res = await leaveApi.getMyQuota(user.id);
-      setQuotas(res.data.data || []);
+      setQuotas(extractList(res));
     } catch (err) {
       console.error('Failed to load quotas:', err);
       setQuotas([]);

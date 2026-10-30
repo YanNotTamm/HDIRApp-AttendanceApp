@@ -1,26 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail, ChevronRight } from 'lucide-react';
+import { authApi, loginErrorMessage } from '@hdir/core/src/api-client';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Bila sudah login, jangan biarkan halaman login dipakai sebagai jalan pintas.
+  useEffect(() => {
+    authApi.getToken().then((token) => {
+      if (token) router.replace('/dashboard');
+    });
+  }, [router]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    if (!email.trim() || !password) {
+      setError('Email dan password wajib diisi.');
+      return;
+    }
     setLoading(true);
-    // Mock login, then redirect
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await authApi.login(email.trim(), password);
+      // Password tidak disimpan di mana pun; hanya token (+ profil) yang disimpan.
       router.push('/dashboard');
-    }, 1000);
+    } catch (err) {
+      setError(loginErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-blue-50 relative overflow-hidden">
-      {/* Decorative blobs */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/20 blur-[100px]" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-400/20 blur-[100px]" />
 
@@ -38,10 +57,12 @@ export default function LoginPage() {
             <label className="block text-sm font-medium text-slate-700 mb-2">Email HR</label>
             <div className="relative">
               <Mail className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input 
-                type="email" 
+              <input
+                type="email"
                 required
-                className="glass-input w-full pl-10 py-3" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="glass-input w-full pl-10 py-3"
                 placeholder="admin@hdir.com"
               />
             </div>
@@ -51,17 +72,25 @@ export default function LoginPage() {
             <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
             <div className="relative">
               <Lock className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input 
-                type="password" 
+              <input
+                type="password"
                 required
-                className="glass-input w-full pl-10 py-3" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="glass-input w-full pl-10 py-3"
                 placeholder="••••••••"
               />
             </div>
           </div>
 
-          <button 
-            type="submit" 
+          {error && (
+            <div role="alert" className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
             disabled={loading}
             className="glass-button w-full py-3 flex items-center justify-center gap-2 group"
           >
